@@ -172,12 +172,12 @@ exports.changeStatus = functions.database.ref('/stories/{storyId}')
    if (status === 'PENDING'){
     console.log('PENDING: participants.length ', participants.length , 'minParticipants', minParticipants);    
         if (participants.length === minParticipants){
-            return change.after.ref.child('status').set('IN_PROGRESS');
+            return change.after.ref.child('currentStatus').set('IN_PROGRESS');
         }
     }else if (status === 'IN_PROGRESS'){
-        console.log('IN_PROGRESS: participants.length ', participants.length , 'minParticipants', minParticipants);    
+        console.log('IN_PROGRESS: content.length ', content.length , 'turn', turn);    
         if (content !== null && content.length === turn){
-            return change.after.ref.child('status').set('COMPLETED');
+            return change.after.ref.child('currentStatus').set('COMPLETED');
         }
     }else{
         return null;
