@@ -5,21 +5,21 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-exports.notifyCurrentTurn = functions.database.ref('/stories/{storyId}')
+exports.notifyCurrentTurn = functions.database.ref('/new-stories/{storyId}')
     .onWrite((change, context) => {
      if (!change.after.exists()) {
         return null;
     }  
       let beforedata = change.before.val()
       let data = change.after.val()
-      if (beforedata.turn === data.turn){
-          return console.log("No need For next Trun notification",beforedata.turn, data.turn)
+      if (beforedata.story.turn === data.story.turn){
+          return console.log("No need For next Trun notification",beforedata.story.turn, data.story.turn)
       }
       console.log('data ', data);          
-      let turn = data.turn;
-      let story_title = data.title;
+      let turn = data.story.turn;
+      let story_title = data.story.title;
       console.log('Current turn ', turn);
-      let participants = data.participants;
+      let participants = data.story.participants;
       console.log('Current participants ', participants);
       let userTurnIndex = turn % participants.length;
       console.log('User Turn index ', userTurnIndex);
@@ -79,7 +79,7 @@ exports.notifyCurrentTurn = functions.database.ref('/stories/{storyId}')
     });
 
 
-    exports.sendBuzzNotification = functions.database.ref('/buzzes/{buzzID}/')
+exports.sendBuzzNotification = functions.database.ref('/buzzes/{buzzID}/')
     .onWrite((change, context) => {
      // Only edit data when it is first created.
     //  if (change.before.exists()) {
@@ -155,31 +155,33 @@ exports.notifyCurrentTurn = functions.database.ref('/stories/{storyId}')
 
     // Listens for new messages added to /messages/:pushId/original and creates an
 // uppercase version of the message to /messages/:pushId/uppercase
-exports.changeStatus = functions.database.ref('/stories/{storyId}')
+exports.changeStatus = functions.database.ref('/new-stories/{storyId}')
 .onWrite((change, context) => {
     if (!change.after.exists()) {
         return null;
     }
-    
+
    let data = change.after.val()
    console.log('data ', data);    
-   let status = data.currentStatus;
+   let status = data.story.currentStatus;
    console.log('status ', status);    
-   let minParticipants = data.minParticipants;
-   let turn = data.turn;
-   let content  = data.content;
-   let participants = data.participants;
+   let minParticipants = data.story.minParticipants;
+   let turn = data.story.turn;
+   let maxround = data.story.numRounds;
+   let participants = data.story.participants;
    if (status === 'PENDING'){
     console.log('PENDING: participants.length ', participants.length , 'minParticipants', minParticipants);    
         if (participants.length === minParticipants){
-            return change.after.ref.child('currentStatus').set('IN_PROGRESS');
+            return change.after.ref.child('story').child('currentStatus').set('IN_PROGRESS');
         }
     }else if (status === 'IN_PROGRESS'){
-        console.log('IN_PROGRESS: content.length ', content.length , 'turn', turn);    
-        if (content !== null && content.length === turn){
-            return change.after.ref.child('currentStatus').set('COMPLETED');
+        console.log('IN_PROGRESS: content.length ', content.length , 'turn', turn);
+        round = turn / participants.length;
+        if (round === maxround){
+            return change.after.ref.child('story').child('currentStatus').set('COMPLETED');
         }
     }else{
         return null;
     }
+    return null;
 });
