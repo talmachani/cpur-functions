@@ -25,6 +25,8 @@ exports.notifyCurrentTurn = functions.database.ref('/new-stories/{storyId}')
       console.log('User Turn index ', userTurnIndex);
       const curentTurnUID = participants[userTurnIndex];
       console.log('User UID', curentTurnUID);
+      
+      const getCurrentProfilePromise = admin.auth().getUser(curentTurnUID);
 
 
       // Get the list of device notification tokens.
@@ -38,8 +40,9 @@ exports.notifyCurrentTurn = functions.database.ref('/new-stories/{storyId}')
       // The array containing all the user's tokens.
       let tokens;
 
-      return Promise.all([getDeviceTokensPromise]).then(results => {
+      return Promise.all([getDeviceTokensPromise, getCurrentProfilePromise]).then(results => {
         tokensSnapshot = results[0];
+        const currrntTurnUser = results[1];
         console.log("tokensSnapshot", tokensSnapshot);   
 
         // Check if there are any device tokens.
@@ -47,12 +50,15 @@ exports.notifyCurrentTurn = functions.database.ref('/new-stories/{storyId}')
         //   return console.log('There are no notification tokens to send to.');
         // }
         //console.log('There are', tokensSnapshot.numChildren(), 'tokens to send notifications to.');
-
+        let username = currrntTurnUser.email.split("@")[0];
+        const messages = ["It's Time to Be Creative","How long does writer block last?","How do I get over writer's block?","What does it mean to have writer's block?",
+          "How do you cure writer's block?", "What is writer's anxiety?", "How do you get rid of writer's block?", "What is block writing?"
+            ,"What is Freewriting?", "How do you do Freewriting?", "What is a Ommwriter?"]
         // Notification details.
         const payload = {
           notification: {
-            title: story_title,
-            body: `Hi, It's Time to Be Creative`
+            title: `(${story_title}) Hi ${username},`,
+            body: messages[Math.floor(Math.random()*messages.length)]
           }
         };
         // Listing all tokens as an array.
@@ -107,7 +113,10 @@ exports.sendBuzzNotification = functions.database.ref('/buzzes/{buzzID}/')
       console.log("getDeviceTokensPromise", getDeviceTokensPromise);    
 
       // Get the follower profile.
-      const getFollowerProfilePromise = admin.auth().getUser(buzzerUid);
+      const getBuzzerProfilePromise = admin.auth().getUser(buzzerUid);
+
+      const getBuzzedProfilePromise = admin.auth().getUser(buzzedUid);
+
 
       // The snapshot to the user's tokens.
       let tokensSnapshot;
@@ -115,18 +124,21 @@ exports.sendBuzzNotification = functions.database.ref('/buzzes/{buzzID}/')
       // The array containing all the user's tokens.
       let tokens;
 
-      return Promise.all([getDeviceTokensPromise, getFollowerProfilePromise]).then(results => {
+      return Promise.all([getDeviceTokensPromise, getBuzzerProfilePromise,getBuzzedProfilePromise]).then(results => {
         tokensSnapshot = results[0];
         const buzzer = results[1];
+        const buzzed = results[2];
         console.log("buzzer ", buzzer)
+        console.log("buzzed ", buzzed)
 
         // Check if there are any device tokens.
         // Notification details.
-        let username = buzzer.email.split("@")[0];
+        let buzzerUsername = buzzer.email.split("@")[0];
+        let buzzedUsername = buzzed.email.split("@")[0];
         const payload = {
           notification: {
-            title: storyTitle,
-            body: `You Got a Buzz from ${username}.\n it's time to be creative!`
+            title: `(${storyTitle}) Hi ${buzzedUsername},`,
+            body: `You Got a Buzz from ${buzzerUsername}.\nIt's time to be creative!`
           }
         };
 
@@ -169,15 +181,16 @@ exports.changeStatus = functions.database.ref('/new-stories/{storyId}')
    let turn = data.story.turn;
    let maxround = data.story.numRounds;
    let participants = data.story.participants;
+
    if (status === 'PENDING'){
     console.log('PENDING: participants.length ', participants.length , 'minParticipants', minParticipants);    
         if (participants.length === minParticipants){
             return change.after.ref.child('story').child('currentStatus').set('IN_PROGRESS');
         }
     }else if (status === 'IN_PROGRESS'){
-        console.log('IN_PROGRESS: content.length ', content.length , 'turn', turn);
+        console.log('IN_PROGRESS,  turn', turn);
         round = turn / participants.length;
-        if (round === maxround){
+        if (round >= maxround){
             return change.after.ref.child('story').child('currentStatus').set('COMPLETED');
         }
     }else{
